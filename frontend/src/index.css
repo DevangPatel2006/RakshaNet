@@ -1,14 +1,9 @@
+@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  body {
-    font-family: 'Outfit', sans-serif;
-    @apply bg-slate-950 text-slate-100 overflow-x-hidden antialiased;
-  }
+body {
+  font-family: 'Outfit', sans-serif;
+  @apply bg-slate-950 text-slate-100 overflow-x-hidden antialiased;
 }
 
 /* Custom premium scrollbars */

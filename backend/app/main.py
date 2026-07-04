@@ -1,12 +1,22 @@
 import asyncio
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import SessionLocal
 from app.db.init_db import init_db
 from app.routers import auth, complaints, cases, counterfeit, graph, evidence, alerts, geo, transactions, admin, speech
 from app.services.event_bus import get_event_bus
 
 app = FastAPI(title="RakshaNet Core API Gateway")
+
+# Enable CORS preflight checks and cross-origin access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

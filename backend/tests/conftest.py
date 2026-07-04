@@ -12,6 +12,42 @@ def mock_redis_publish():
     with patch("app.services.event_bus.RedisEventBus.publish_alert", new_callable=AsyncMock) as mock:
         yield mock
 
+@pytest.fixture(autouse=True)
+def mock_groq():
+    from app.services.groq_client import get_groq_client
+    client = get_groq_client()
+    client.mock_mode = True
+    
+    # Configure mock prediction rules to mimic old local model features for unit tests
+    def mock_classify(text):
+        txt_lower = text.lower()
+        if any(k in txt_lower for k in ["cbi", "arrest", "police", "contraband", "skype", "money laundering"]):
+            return {
+                "is_scam": True,
+                "scam_type": "digital_arrest",
+                "confidence": 82.5,
+                "explanation": "Detected digital arrest keywords."
+            }
+        elif any(k in txt_lower for k in ["kyc", "block", "link", "risk check"]):
+            return {
+                "is_scam": True,
+                "scam_type": "phishing",
+                "confidence": 70.0,
+                "explanation": "Detected phishing keywords."
+            }
+        else:
+            return {
+                "is_scam": False,
+                "scam_type": "none",
+                "confidence": 15.0,
+                "explanation": "No scam features detected."
+            }
+            
+    client.mock_client = mock_classify
+    yield
+    client.mock_mode = False
+    client.mock_client = None
+
 # Dedicated test database URL
 TEST_DATABASE_URL = settings.DATABASE_URL.replace("/rakshanet", "/rakshanet_test")
 

@@ -4,7 +4,8 @@ import numpy as np
 
 class SpeechService:
     def __init__(self):
-        self.metrics = {"precision": 0.89, "recall": 0.85, "fpr": 0.08}
+        # TODO: no evaluation harness exists yet for this model
+        pass
 
     def extract_features_from_wav(self, file_path: str) -> dict:
         """

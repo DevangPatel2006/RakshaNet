@@ -932,18 +932,24 @@ export default function App() {
                       {m.model_name.replace('_', ' ').toUpperCase()}
                     </h3>
                     <div className="space-y-1 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500">Precision:</span>
-                        <span className="font-semibold text-slate-200">{m.precision * 100}%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500">Recall:</span>
-                        <span className="font-semibold text-slate-200">{m.recall * 100}%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500">False Positives:</span>
-                        <span className="font-semibold text-amber-500">{m.false_positive_rate * 100}%</span>
-                      </div>
+                      {m.status === 'not_yet_evaluated' || m.precision === null ? (
+                        <div className="text-slate-500 italic py-1">Not yet evaluated</div>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">Precision:</span>
+                            <span className="font-semibold text-slate-200">{(m.precision * 100).toFixed(0)}%</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">Recall:</span>
+                            <span className="font-semibold text-slate-200">{(m.recall * 100).toFixed(0)}%</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">False Positives:</span>
+                            <span className="font-semibold text-amber-500">{(m.false_positive_rate * 100).toFixed(0)}%</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

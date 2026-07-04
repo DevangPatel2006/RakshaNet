@@ -89,20 +89,8 @@ def init_db(db: Session):
             db.add(user)
             db.commit()
 
-    # Seed model metrics
-    print("Seeding model performance metrics...")
-    metrics_to_seed = [
-        ("nlp_classifier", 0.86, 1.00, 0.33),
-        ("counterfeit_vision", 0.92, 0.88, 0.05),
-        ("speech_service", 0.89, 0.85, 0.08),
-        ("graph_service", 0.95, 0.90, 0.02)
-    ]
-    for name, p, r, fpr in metrics_to_seed:
-        m = db.query(models.ModelMetrics).filter(models.ModelMetrics.model_name == name).first()
-        if not m:
-            m = models.ModelMetrics(model_name=name, precision=p, recall=r, fpr=fpr)
-            db.add(m)
-            db.commit()
+    # Model metrics will be written genuinely via evaluation scripts or remain not_yet_evaluated
+    print("Database initialization and schema setup completed.")
 
     # Create database indexes if not exist
     print("Creating database indexes...")

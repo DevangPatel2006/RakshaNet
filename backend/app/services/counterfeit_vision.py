@@ -7,7 +7,7 @@ class CounterfeitVisionService:
         # We define target ranges for standard currency colors (e.g. green-gray hues for 500 Rs note)
         # H: 30-90 (Greenish-Yellow), S: 20-255, V: 50-255
         self.target_hue_range = (25, 95)
-        self.metrics = {"precision": 0.92, "recall": 0.88, "fpr": 0.05} # Real metrics calculated from test runs
+        # TODO: no evaluation harness exists yet for this model
 
     def scan_note(self, image_path: str) -> dict:
         if not os.path.exists(image_path):
