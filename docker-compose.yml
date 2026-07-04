@@ -60,6 +60,8 @@ services:
       - REDIS_URL=${REDIS_URL}
       - JWT_SECRET=${JWT_SECRET}
       - HF_HOME=/root/.cache/huggingface
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL}
     volumes:
       - hfcache:/root/.cache/huggingface
     depends_on:
