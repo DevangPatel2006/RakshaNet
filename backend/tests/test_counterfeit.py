@@ -15,7 +15,7 @@ def dummy_note_image():
     cv2.line(img, (385, 0), (385, 400), (40, 40, 40), 5)
     
     # 2. Draw serial number boxes (9 small black boxes representing characters at bottom right)
-    # X: 550 to 750, Y: 330 to 370
+    # X: 550 to 750, Y: 330 to 370 ok
     for i in range(9):
         x_start = 550 + i * 20
         cv2.rectangle(img, (x_start, 335), (x_start + 12, 365), (20, 20, 20), -1)
