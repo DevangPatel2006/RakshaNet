@@ -4,7 +4,7 @@ import App from './App';
 
 // Mock global fetch and WebSocket before tests run
 beforeAll(() => {
-  global.fetch = vi.fn().mockImplementation(() => 
+  (globalThis as any).fetch = vi.fn().mockImplementation(() => 
     Promise.resolve({
       ok: true,
       json: () => Promise.resolve({ access_token: "dummy_token", username: "citizen_john" })
@@ -29,7 +29,7 @@ beforeAll(() => {
     close() {}
   }
   
-  global.WebSocket = MockWebSocket as any;
+  (globalThis as any).WebSocket = MockWebSocket as any;
 });
 
 test('renders RakshaNet title and logo', async () => {
