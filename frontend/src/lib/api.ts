@@ -59,7 +59,9 @@ export const api = {
 
   // Check risk / AI Scoring explanation (triggers scorer in orchestrator)
   async checkRisk(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE}/complaints/${id}/risk-check`);
+    const res = await fetch(`${API_BASE}/complaints/${id}/risk-check`, {
+      method: 'POST'
+    });
     if (!res.ok) throw new Error("Scoring failed");
   },
 
