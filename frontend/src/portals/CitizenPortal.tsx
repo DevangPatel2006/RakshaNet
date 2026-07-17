@@ -62,6 +62,11 @@ export function CitizenPortal({ token, username, setSuccessMsg, setErrorMsg, loa
     e.preventDefault();
     if (!transcriptInput.trim()) return;
 
+    if (!token) {
+      setErrorMsg("Session not ready yet — please wait a moment and try again.");
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
