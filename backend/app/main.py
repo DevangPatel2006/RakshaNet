@@ -12,15 +12,6 @@ app = FastAPI(title="RakshaNet Core API Gateway")
 
 cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 
-# Enable CORS preflight checks and cross-origin access
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     print(f"Global Error Hook: {str(exc)}")
@@ -71,6 +62,18 @@ app.include_router(geo.router)
 app.include_router(transactions.router)
 app.include_router(admin.router)
 app.include_router(speech.router)
+
+# CORS middleware must be added AFTER routers so it is executed FIRST (Starlette
+# applies middleware in reverse-add order). This guarantees OPTIONS preflight
+# requests are short-circuited here before any route dependency (e.g. JWT auth)
+# can reject them with a 400.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
