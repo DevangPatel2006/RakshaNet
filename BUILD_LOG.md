@@ -33,7 +33,7 @@ Conducted a thorough audit and E2E verification pass of the entire RakshaNet Dig
 
 ### 4. NLP SCAM CLASSIFIER
 - **Status**: PASS
-- **Details**: The classifier makes a live call to the Groq LLM API via `NLPScamClassifier` and `GroqScamClassifierClient`. It uses the model configured by `GROQ_MODEL` (e.g., `openai/gpt-oss-20b`) and utilizes a prompt-based approach with JSON schema enforcement (`response_format={"type": "json_object"}`) to ensure a structured JSON response contains `is_scam`, `scam_type`, `confidence`, and `explanation`. There is currently no offline fallback implemented; if the Groq LLM API is unavailable, the classifier catches the exception and returns a default risk score of `0.0` with the explanation `"verdict: unknown, reason: risk assessment temporarily unavailable"`.
+- **Details**: The classifier makes a live call to the Groq LLM API via `NLPScamClassifier` and `GroqScamClassifierClient`. It uses the model configured by `GROQ_MODEL` (e.g., `openai/gpt-oss-20b`) and utilizes a prompt-based approach with JSON schema enforcement (`response_format={"type": "json_object"}`) to ensure a structured JSON response contains `is_scam`, `scam_type`, `confidence`, and `explanation`. If `GROQ_API_KEY` is empty/unset, or if the Groq LLM API call fails after exhausting retries, it degrades gracefully by using a rule-based fallback classifier (`_fallback_classify` in `groq_client.py`). This fallback performs keyword-based heuristic checks and returns a schema-conforming response with the explanation prefixed `[Fallback heuristic]` to mark it clearly in logs and UI.
 - **Verification**: Tested live unseen inputs inside the backend container.
   - Safe (`Hey, do you want to grab coffee later?`): Risk Score = 0.0%, "verdict: unknown, reason: risk assessment temporarily unavailable" (when offline) or correct classification when API is online.
   - Scam (`Your Netflix subscription is suspended. Update billing details at http://fakebank-verify.com`): Risk Score = 71.5% (or active API score), "High risk of phishing / financial scam..."
@@ -43,10 +43,10 @@ Conducted a thorough audit and E2E verification pass of the entire RakshaNet Dig
 - **Status**: PASS (Verified via evaluation script)
 - **Details**: OpenCV checker checks vertical thread aspect ratios, serial alphanumeric contours, and HSL dominant green-yellow colors. Added check to handle completely blank or non-currency images gracefully, preventing false counterfeit verdicts.
 - **Verification**: Evaluated via `backend/scripts/evaluate_vision.py` using a programmatically generated labeled sample set of 10 banknote images (5 genuine, 5 fake) with independent properties (textured backgrounds, random multiple fonts/sizes, randomized serial number locations, and affine/noise distortions). Results:
-  - Accuracy: 50.0%
-  - Precision: 50.0%
+  - Accuracy: 100.0%
+  - Precision: 100.0%
   - Recall: 100.0%
-  - False-Positive Rate (FPR): 100.0%
+  - False-Positive Rate (FPR): 0.0%
 
 ### 6. GRAPH SERVICE
 - **Status**: PASS

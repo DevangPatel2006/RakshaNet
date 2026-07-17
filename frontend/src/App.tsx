@@ -223,6 +223,8 @@ export default function App() {
 
           {role === 'citizen' && (
             <CitizenPortal
+              token={token || ''}
+              username={username}
               setSuccessMsg={setSuccessMsg}
               setErrorMsg={setErrorMsg}
               loading={loading}
@@ -256,6 +258,7 @@ export default function App() {
 
           {role === 'telecom_analyst' && (
             <TelecomPortal
+              token={token || ''}
               setSuccessMsg={setSuccessMsg}
               setErrorMsg={setErrorMsg}
               loading={loading}

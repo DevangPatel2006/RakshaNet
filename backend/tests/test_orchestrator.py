@@ -58,7 +58,8 @@ async def test_orchestrator_pipeline(mock_add_entity, mock_publish_alert, db_ses
         reporter_name="Bob Jones",
         phone="9998887776",
         lat=28.60, # Inside Delhi bounds
-        lng=77.20
+        lng=77.20,
+        citizen_username="Bob Jones"
     )
 
     # 1. Verify PostgreSQL Ingestion

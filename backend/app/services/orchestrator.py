@@ -20,7 +20,8 @@ class AIOrchestrator:
         reporter_name: Optional[str] = None,
         phone: Optional[str] = None,
         lat: Optional[float] = None,
-        lng: Optional[float] = None
+        lng: Optional[float] = None,
+        citizen_username: Optional[str] = None
     ) -> models.Complaint:
         """
         Main ingestion pipeline for citizen reports and transcripts.
@@ -226,9 +227,9 @@ class AIOrchestrator:
                 target_role="officer"
             )
 
-        if reporter_name:
+        if citizen_username:
             await eb.send_to_user(
-                reporter_name,
+                citizen_username,
                 {
                     "title": "Your report has been analyzed",
                     "description": f"Risk Score: {final_score}%. {explanation}",

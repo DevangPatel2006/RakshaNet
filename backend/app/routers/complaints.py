@@ -33,14 +33,19 @@ def fetch_complaint_by_id(db: Session, complaint_id: int):
     return c
 
 @router.post("", response_model=complaint_schemas.ComplaintResponse, status_code=status.HTTP_201_CREATED)
-async def create_complaint(complaint_in: complaint_schemas.ComplaintCreate, db: Session = Depends(get_db)):
+async def create_complaint(
+    complaint_in: complaint_schemas.ComplaintCreate, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     complaint = await AIOrchestrator.process_complaint_signal(
         db=db,
         text_content=complaint_in.text_content,
         reporter_name=complaint_in.reporter_name,
         phone=complaint_in.phone,
         lat=complaint_in.location_lat,
-        lng=complaint_in.location_lng
+        lng=complaint_in.location_lng,
+        citizen_username=current_user.username
     )
     # Fetch coordinates representation correctly for serialization
     return fetch_complaint_by_id(db, complaint.id)

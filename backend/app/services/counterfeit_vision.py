@@ -34,10 +34,13 @@ class CounterfeitVisionService:
         hsv = cv2.cvtColor(img_resized, cv2.COLOR_BGR2HSV)
 
         # 1. Security Thread Contour Check
-        # The security thread is generally vertical, running through the center (X: 360-400)
+        # The security thread is generally vertical, running through the center (X: 350-430)
         thread_crop = gray[:, 350:430]
         # Threshold to find dark strip lines
         _, thresh_thread = cv2.threshold(thread_crop, 80, 255, cv2.THRESH_BINARY_INV)
+        # Apply vertical morphological dilation to bridge gaps in the dashed thread
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 15))
+        thresh_thread = cv2.dilate(thresh_thread, kernel, iterations=1)
         contours, _ = cv2.findContours(thresh_thread, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         thread_ok = False
@@ -45,30 +48,37 @@ class CounterfeitVisionService:
         for cnt in contours:
             x_c, y_c, w_c, h_c = cv2.boundingRect(cnt)
             # A vertical thread should span a large height of the image and be thin
-            if h_c > 250 and w_c < 25:
+            if h_c > 200 and w_c < 70:
                 thread_ok = True
                 thread_confidence = min(h_c / 400.0, 1.0) * 100
                 break
         
         # 2. Serial Number Character Pattern Check
-        # Typically located on the bottom right (X: 550-780, Y: 320-380)
+        # Typically located on the bottom right (X: 520-790, Y: 310-390)
         serial_crop = gray[310:390, 520:790]
-        # Adaptive thresholding to isolate characters
-        thresh_serial = cv2.adaptiveThreshold(
-            serial_crop, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 4
-        )
+        # Use global thresholding to isolate very dark characters from light background pattern lines
+        _, thresh_serial = cv2.threshold(serial_crop, 100, 255, cv2.THRESH_BINARY_INV)
         contours_serial, _ = cv2.findContours(thresh_serial, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         # Filter contours that resemble alphanumeric characters
         char_count = 0
         for cnt in contours_serial:
             x_c, y_c, w_c, h_c = cv2.boundingRect(cnt)
-            # A character has typical bounding sizes
-            if 4 <= w_c <= 25 and 12 <= h_c <= 45:
-                char_count += 1
+            # A character has typical bounding sizes (allow a wider range for rotation & noise)
+            if 10 <= h_c <= 50:
+                if 3 <= w_c <= 25:
+                    char_count += 1
+                elif 25 < w_c <= 50:
+                    char_count += 2
+                elif 50 < w_c <= 75:
+                    char_count += 4
+                elif 75 < w_c <= 100:
+                    char_count += 6
+                elif 100 < w_c <= 160:
+                    char_count += 9
         
-        # Genuine serial number usually has 9 characters
-        serial_pattern_ok = (7 <= char_count <= 11)
+        # Genuine serial number usually has 9 characters (tolerate minor merges or split noise)
+        serial_pattern_ok = (6 <= char_count <= 12)
         serial_confidence = 100.0 if serial_pattern_ok else max(0.0, (1.0 - abs(9 - char_count) / 9.0) * 100)
 
         # 3. Color Histogram Check

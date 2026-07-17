@@ -3,13 +3,14 @@ import { PhoneCall, Check, ShieldAlert, Radio, Activity, Search, ArrowRight } fr
 import { api } from '../lib/api';
 
 interface TelecomPortalProps {
+  token: string;
   setSuccessMsg: (msg: string | null) => void;
   setErrorMsg: (msg: string | null) => void;
   loading: boolean;
   setLoading: (l: boolean) => void;
 }
 
-export function TelecomPortal({ setSuccessMsg, setErrorMsg, loading, setLoading }: TelecomPortalProps) {
+export function TelecomPortal({ token, setSuccessMsg, setErrorMsg, loading, setLoading }: TelecomPortalProps) {
   const [callsList] = useState([
     { id: 1, caller: "+91 9998887776", callee: "+91 9876543210", duration: "2m 14s", risk: 80, location: "Delhi, DL" },
     { id: 2, caller: "+91 9898989898", callee: "+91 9123456789", duration: "0m 45s", risk: 15, location: "Gurugram, HR" },
@@ -26,7 +27,7 @@ export function TelecomPortal({ setSuccessMsg, setErrorMsg, loading, setLoading 
     setSuccessMsg(null);
 
     try {
-      await api.submitComplaint({
+      await api.submitComplaint(token, {
         reporter_name: "Telecom Intercept Service",
         phone: callerPhone,
         text_content: "This is police calling. Connect to Skype immediately. You are under digital arrest for tax evasion.",

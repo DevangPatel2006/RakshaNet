@@ -6,17 +6,18 @@ import {
 import { api } from '../lib/api';
 
 interface CitizenPortalProps {
+  token: string;
+  username: string;
   setSuccessMsg: (msg: string | null) => void;
   setErrorMsg: (msg: string | null) => void;
   loading: boolean;
   setLoading: (l: boolean) => void;
 }
 
-export function CitizenPortal({ setSuccessMsg, setErrorMsg, loading, setLoading }: CitizenPortalProps) {
+export function CitizenPortal({ token, username, setSuccessMsg, setErrorMsg, loading, setLoading }: CitizenPortalProps) {
   const [activeTab, setActiveTab] = useState<'text' | 'currency' | 'audio'>('text');
   
   // Text state
-  const [reporterName, setReporterName] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [transcriptInput, setTranscriptInput] = useState('');
   const [textVerdict, setTextVerdict] = useState<{ score: number; explanation: string } | null>(null);
@@ -71,8 +72,8 @@ export function CitizenPortal({ setSuccessMsg, setErrorMsg, loading, setLoading 
       const lat = 28.5 + Math.random() * 0.18;
       const lng = 77.1 + Math.random() * 0.18;
 
-      const complaint = await api.submitComplaint({
-        reporter_name: reporterName || "Anonymous",
+      const complaint = await api.submitComplaint(token, {
+        reporter_name: username || "Anonymous",
         phone: phoneInput || null,
         text_content: transcriptInput,
         location_lat: lat,
@@ -247,13 +248,13 @@ export function CitizenPortal({ setSuccessMsg, setErrorMsg, loading, setLoading 
               <form onSubmit={handleTextSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1.5 tracking-wider">Reporter Name (Optional)</label>
+                    <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1.5 tracking-wider">Reporter Name (Read-Only)</label>
                     <input 
                       type="text" 
-                      value={reporterName}
-                      onChange={(e) => setReporterName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+                      value={username}
+                      readOnly
+                      disabled
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-400 focus:outline-none cursor-not-allowed opacity-75" 
                     />
                   </div>
                   <div>

@@ -14,6 +14,8 @@ def auth_header(client, db_session):
     token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
+from unittest.mock import patch
+
 def test_create_and_read_complaint(client, auth_header):
     # Create complaint with location
     complaint_data = {
@@ -24,7 +26,7 @@ def test_create_and_read_complaint(client, auth_header):
         "location_lng": 77.23
     }
     
-    response = client.post("/complaints", json=complaint_data)
+    response = client.post("/complaints", json=complaint_data, headers=auth_header)
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
     assert data["reporter_name"] == "Alice Smith"
@@ -45,8 +47,8 @@ def test_create_and_read_complaint(client, auth_header):
 
 def test_read_complaints_list(client, auth_header):
     # Add two complaints
-    client.post("/complaints", json={"text_content": "Scam transcript 1"})
-    client.post("/complaints", json={"text_content": "Scam transcript 2"})
+    client.post("/complaints", json={"text_content": "Scam transcript 1"}, headers=auth_header)
+    client.post("/complaints", json={"text_content": "Scam transcript 2"}, headers=auth_header)
     
     resp = client.get("/complaints", headers=auth_header)
     assert resp.status_code == status.HTTP_200_OK
@@ -57,9 +59,9 @@ def test_complaint_not_found(client):
     resp = client.get("/complaints/99999")
     assert resp.status_code == status.HTTP_404_NOT_FOUND
 
-def test_complaint_risk_check(client):
+def test_complaint_risk_check(client, auth_header):
     # Create complaint
-    resp_create = client.post("/complaints", json={"text_content": "Risk check scam message"})
+    resp_create = client.post("/complaints", json={"text_content": "Risk check scam message"}, headers=auth_header)
     comp_id = resp_create.json()["id"]
     
     resp = client.post(f"/complaints/{comp_id}/risk-check")
@@ -67,6 +69,30 @@ def test_complaint_risk_check(client):
     data = resp.json()
     assert "risk_score" in data
     assert "risk_explanation" in data
+
+def test_citizen_complaint_alert_targeting(client, auth_header):
+    with patch("app.services.event_bus.RedisEventBus.publish_alert") as mock_publish:
+        complaint_data = {
+            "reporter_name": "arbitrary_display_name",
+            "phone": "9876543210",
+            "text_content": "Suspicious digital arrest call from custom authorities.",
+        }
+        response = client.post("/complaints", json=complaint_data, headers=auth_header)
+        assert response.status_code == status.HTTP_201_CREATED
+        comp_id = response.json()["id"]
+
+        resp = client.post(f"/complaints/{comp_id}/risk-check")
+        assert resp.status_code == status.HTTP_200_OK
+
+        assert mock_publish.call_count >= 1
+        
+        citizen_alert_calls = [
+            call for call in mock_publish.call_args_list 
+            if call[1].get("target_role") == "citizen"
+        ]
+        assert len(citizen_alert_calls) == 1
+        citizen_args = citizen_alert_calls[0][1]
+        assert citizen_args.get("target_username") == "test_user_crud"
 
 def test_create_and_update_case(client, db_session, auth_header):
     # Create complaints first

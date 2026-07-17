@@ -28,7 +28,7 @@ export const api = {
   },
 
   // Citizen Complaint submission
-  async submitComplaint(data: {
+  async submitComplaint(token: string, data: {
     reporter_name?: string;
     phone?: string | null;
     text_content: string;
@@ -37,7 +37,10 @@ export const api = {
   }): Promise<Complaint> {
     const res = await fetch(`${API_BASE}/complaints`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({
         reporter_name: data.reporter_name || "Anonymous",
         phone: data.phone || null,
