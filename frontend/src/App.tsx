@@ -180,7 +180,9 @@ export default function App() {
               {alerts.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-4">
                   <p className="text-[10px] font-semibold text-slate-650 tracking-wider">
-                    Waiting for real-time Redis queue threat relays...
+                    {role === 'citizen'
+                      ? "No updates yet. You'll see a live notification here as soon as one of your reports is scored."
+                      : "Waiting for real-time Redis queue threat relays..."}
                   </p>
                 </div>
               ) : (

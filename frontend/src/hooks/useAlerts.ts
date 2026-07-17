@@ -7,6 +7,7 @@ export function useAlerts(token: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    setAlerts([]); // Reset alerts when token changes
     if (!token) {
       setWsConnected(false);
       if (wsRef.current) {

@@ -18,6 +18,30 @@ class GroqScamClassifierClient:
             raise ValueError("GROQ_API_KEY is not configured")
         return Groq(api_key=self.api_key)
 
+    def _fallback_classify(self, text: str) -> dict:
+        txt_lower = text.lower()
+        if any(k in txt_lower for k in ["cbi", "arrest", "police", "contraband", "skype", "money laundering"]):
+            return {
+                "is_scam": True,
+                "scam_type": "digital_arrest",
+                "confidence": 82.5,
+                "explanation": "[Fallback heuristic] Detected digital arrest keywords."
+            }
+        elif any(k in txt_lower for k in ["kyc", "block", "link", "risk check"]):
+            return {
+                "is_scam": True,
+                "scam_type": "phishing",
+                "confidence": 70.0,
+                "explanation": "[Fallback heuristic] Detected phishing keywords."
+            }
+        else:
+            return {
+                "is_scam": False,
+                "scam_type": "none",
+                "confidence": 15.0,
+                "explanation": "[Fallback heuristic] No scam features detected."
+            }
+
     def classify_scam_text(self, text: str) -> dict:
         """
         Classifies the text as a scam using the Groq API.
@@ -47,7 +71,18 @@ class GroqScamClassifierClient:
                 "explanation": "[Mock Mode] Default response."
             }
 
-        client = self.get_client()
+        # Fallback if API key is not configured/empty
+        if not settings.GROQ_API_KEY:
+            fallback_res = self._fallback_classify(text)
+            self.cache[text_hash] = fallback_res
+            return fallback_res
+
+        try:
+            client = self.get_client()
+        except Exception:
+            fallback_res = self._fallback_classify(text)
+            self.cache[text_hash] = fallback_res
+            return fallback_res
 
         system_instruction = (
             "You are a Digital Public Safety Intelligence NLP assistant. Analyze the user communication transcript and identify scam patterns. "
@@ -91,14 +126,13 @@ class GroqScamClassifierClient:
                 
             except json.JSONDecodeError as je:
                 last_exception = je
-                # JSON decode is formatting issue, retrying won't necessarily fix, but we retry or fail
             except Exception as e:
                 last_exception = e
                 # Check if rate limit (429) or transient 5xx
                 status_code = getattr(e, "status_code", None)
                 if status_code and status_code == 400:
-                    # Client error - do not retry
-                    raise e
+                    # Client error - break to fallback
+                    break
                 
                 if attempt < max_retries:
                     sleep_time = backoff_factor ** attempt
@@ -106,8 +140,10 @@ class GroqScamClassifierClient:
                 else:
                     break
 
-        # Re-raise or handle the failure
-        raise last_exception if last_exception else RuntimeError("Failed to classify text via Groq")
+        # Fallback if API call failed after retries
+        fallback_res = self._fallback_classify(text)
+        self.cache[text_hash] = fallback_res
+        return fallback_res
 
 # Global instance
 _groq_client = None

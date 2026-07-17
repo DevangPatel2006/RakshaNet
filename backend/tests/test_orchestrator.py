@@ -96,4 +96,15 @@ async def test_orchestrator_pipeline(mock_add_entity, mock_publish_alert, db_ses
 
     # 5. Verify Neo4j & Redis publishes were triggered
     mock_add_entity.assert_called_once()
-    mock_publish_alert.assert_called_once()
+    assert mock_publish_alert.call_count == 2
+    
+    # First call: officer alert
+    first_call_args = mock_publish_alert.call_args_list[0][1]
+    assert first_call_args["target_role"] == "officer"
+    assert "Suspicious Scam Call Ingested" in first_call_args["title"]
+    
+    # Second call: citizen alert
+    second_call_args = mock_publish_alert.call_args_list[1][1]
+    assert second_call_args["target_role"] == "citizen"
+    assert "Your report has been analyzed" in second_call_args["title"]
+    assert second_call_args.get("target_username") == "Bob Jones"

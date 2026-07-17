@@ -215,15 +215,26 @@ class AIOrchestrator:
                 print(f"Orchestrator: Auto-created case #{case.id} and assigned to officer ID {assigned_officer_id}")
 
         # 10. Alert stream publication
+        severity_tag = "Critical" if final_score >= 75.0 else ("High" if final_score >= 40.0 else "Low")
+        eb = get_event_bus()
         if final_score >= 40.0:
-            severity_tag = "Critical" if final_score >= 75.0 else "High"
             desc = f"New report with risk score {final_score}%. Routed to {jurisdiction_name}. Details: {text_content[:60]}..."
-            eb = get_event_bus()
             await eb.publish_alert(
                 title="Suspicious Scam Call Ingested",
                 description=desc,
                 severity=severity_tag,
                 target_role="officer"
+            )
+
+        if reporter_name:
+            await eb.send_to_user(
+                reporter_name,
+                {
+                    "title": "Your report has been analyzed",
+                    "description": f"Risk Score: {final_score}%. {explanation}",
+                    "severity": severity_tag,
+                    "target_role": "citizen"
+                }
             )
 
         db.refresh(complaint)

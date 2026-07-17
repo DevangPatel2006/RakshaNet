@@ -19,14 +19,14 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    await manager.connect(websocket, role)
+    await manager.connect(websocket, role, username)
     try:
         while True:
             # Keep-alive receive loop
             # Clients do not need to send data, but we must listen for connection closing
             _ = await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket, role)
+        manager.disconnect(websocket, role, username)
     except Exception as e:
         print(f"WebSocket error: {e}")
-        manager.disconnect(websocket, role)
+        manager.disconnect(websocket, role, username)

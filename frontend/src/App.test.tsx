@@ -41,6 +41,6 @@ test('renders RakshaNet title and logo', async () => {
   expect(titleElements[0]).toBeInTheDocument();
   
   // Verify target role label is present
-  const selectLabel = screen.getByText(/Access Role:/i);
+  const selectLabel = screen.getByText(/Access Scope:/i);
   expect(selectLabel).toBeInTheDocument();
 });

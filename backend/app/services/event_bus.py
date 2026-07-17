@@ -1,35 +1,53 @@
 import asyncio
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 from fastapi import WebSocket
 import redis.asyncio as aioredis
 from app.core.config import settings
 
 class ConnectionManager:
     def __init__(self):
-        # Active connections grouped by role: citizen, officer, bank_analyst, telecom_analyst, admin
-        self.active_connections: Dict[str, List[WebSocket]] = {
-            "citizen": [],
-            "officer": [],
-            "bank_analyst": [],
-            "telecom_analyst": [],
-            "admin": []
+        # Active connections grouped by role and then username: Dict[str, Dict[str, List[WebSocket]]]
+        self.active_connections: Dict[str, Dict[str, List[WebSocket]]] = {
+            "citizen": {},
+            "officer": {},
+            "bank_analyst": {},
+            "telecom_analyst": {},
+            "admin": {}
         }
 
-    async def connect(self, websocket: WebSocket, role: str):
+    async def connect(self, websocket: WebSocket, role: str, username: str):
         if role not in self.active_connections:
             role = "citizen"
         await websocket.accept()
-        self.active_connections[role].append(websocket)
-        print(f"WebSocket client connected with role: {role}")
+        if username not in self.active_connections[role]:
+            self.active_connections[role][username] = []
+        self.active_connections[role][username].append(websocket)
+        print(f"WebSocket client connected with role: {role}, username: {username}")
 
-    def disconnect(self, websocket: WebSocket, role: str):
-        if role in self.active_connections and websocket in self.active_connections[role]:
-            self.active_connections[role].remove(websocket)
-            print(f"WebSocket client disconnected with role: {role}")
+    def disconnect(self, websocket: WebSocket, role: str, username: str):
+        if role in self.active_connections and username in self.active_connections[role]:
+            if websocket in self.active_connections[role][username]:
+                self.active_connections[role][username].remove(websocket)
+                if not self.active_connections[role][username]:
+                    del self.active_connections[role][username]
+            print(f"WebSocket client disconnected with role: {role}, username: {username}")
 
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         await websocket.send_json(message)
+
+    async def send_to_user(self, username: str, payload: dict):
+        """
+        Sends message to a specific user across all roles.
+        """
+        msg = json.dumps(payload)
+        for role in self.active_connections:
+            if username in self.active_connections[role]:
+                for connection in list(self.active_connections[role][username]):
+                    try:
+                        await connection.send_text(msg)
+                    except Exception as e:
+                        print(f"Failed to send to user {username}: {e}")
 
     async def broadcast_to_role(self, val: dict, target_role: str):
         """
@@ -43,12 +61,13 @@ class ConnectionManager:
         
         for role in roles:
             if role in self.active_connections:
-                for connection in self.active_connections[role]:
-                    try:
-                        await connection.send_text(payload)
-                    except Exception as e:
-                        # Client disconnected or connection dead; clean up happens on disconnect
-                        print(f"Failed to push message: {e}")
+                for username, connections in list(self.active_connections[role].items()):
+                    for connection in list(connections):
+                        try:
+                            await connection.send_text(payload)
+                        except Exception as e:
+                            # Client disconnected or connection dead; clean up happens on disconnect
+                            print(f"Failed to push message: {e}")
 
 manager = ConnectionManager()
 
@@ -61,7 +80,7 @@ class RedisEventBus:
     async def connect(self):
         self.redis = aioredis.from_url(self.redis_url, decode_responses=True)
 
-    async def publish_alert(self, title: str, description: str, severity: str, target_role: str):
+    async def publish_alert(self, title: str, description: str, severity: str, target_role: str, target_username: Optional[str] = None):
         """
         Publishes a new alert event to the Redis Stream.
         """
@@ -72,10 +91,27 @@ class RedisEventBus:
             "title": title,
             "description": description,
             "severity": severity,
-            "target_role": target_role
+            "target_role": target_role,
+            "target_username": target_username
         }
         # XADD command to publish on Redis Stream
         await self.redis.xadd(self.stream_name, {"data": json.dumps(payload)})
+
+    async def send_to_user(self, username: str, payload: dict):
+        """
+        Sends alert specifically to a user by publishing to Redis stream.
+        """
+        title = payload.get("title", "Alert")
+        description = payload.get("description", "")
+        severity = payload.get("severity", "Medium")
+        target_role = payload.get("target_role", "citizen")
+        await self.publish_alert(
+            title=title,
+            description=description,
+            severity=severity,
+            target_role=target_role,
+            target_username=username
+        )
 
     async def start_consumer(self, db_session_factory):
         """
@@ -142,8 +178,12 @@ class RedisEventBus:
                         finally:
                             db.close()
 
-                        # 2. Broadcast to role-scoped WebSockets
-                        await manager.broadcast_to_role(event_data, event_data["target_role"])
+                        # 2. Route/Broadcast to WebSockets
+                        target_username = event_data.get("target_username")
+                        if target_username:
+                            await manager.send_to_user(target_username, event_data)
+                        else:
+                            await manager.broadcast_to_role(event_data, event_data["target_role"])
 
             except asyncio.CancelledError:
                 break

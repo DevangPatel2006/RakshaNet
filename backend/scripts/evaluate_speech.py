@@ -14,49 +14,102 @@ from app.services.speech_service import get_speech_service
 
 TEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "test_samples", "speech")
 
-def generate_natural_wav(path, freq, noise_level):
+def generate_natural_wav(path):
     sample_rate = 8000
     duration = 2.0
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    signal = np.sin(2 * np.pi * freq * t) + noise_level * np.random.normal(0, 1, len(t))
-    signal /= np.max(np.abs(signal))
+    
+    # 1. Modulate fundamental frequency (F0) over time (intonation)
+    f0 = 150 + 40 * np.sin(2 * np.pi * 1.5 * t)
+    phase_f0 = 2 * np.pi * np.cumsum(f0) / sample_rate
+    signal_f0 = np.sin(phase_f0)
+    
+    # 2. Formants F1 (~600Hz), F2 (~1600Hz), F3 (~2600Hz)
+    f1 = 600 + 100 * np.cos(2 * np.pi * 0.8 * t)
+    f2 = 1600 + 200 * np.sin(2 * np.pi * 0.5 * t)
+    f3 = 2600 + 150 * np.sin(2 * np.pi * 1.2 * t)
+    
+    phase_f1 = 2 * np.pi * np.cumsum(f1) / sample_rate
+    phase_f2 = 2 * np.pi * np.cumsum(f2) / sample_rate
+    phase_f3 = 2 * np.pi * np.cumsum(f3) / sample_rate
+    
+    signal_f1 = np.sin(phase_f1) * 0.6
+    signal_f2 = np.sin(phase_f2) * 0.4
+    signal_f3 = np.sin(phase_f3) * 0.2
+    
+    combined = signal_f0 + signal_f1 + signal_f2 + signal_f3
+    
+    # 3. Syllable envelope
+    vocal_envelope = 0.5 * (1 + np.sin(2 * np.pi * 3.0 * t))
+    combined *= vocal_envelope
+    
+    # 4. Consonant bursts (inject high freq white noise when envelope is low)
+    consonant_noise = np.random.normal(0, 0.15, len(t))
+    consonant_mask = (vocal_envelope < 0.2).astype(np.float32)
+    combined += consonant_noise * consonant_mask * 0.3
+    
+    # 5. Environment noise (hum + low white noise)
+    hum = 0.02 * np.sin(2 * np.pi * 50 * t)
+    bg_noise = np.random.normal(0, 0.05, len(t))
+    combined += hum + bg_noise
+    
+    # Normalize
+    combined /= np.max(np.abs(combined)) + 1e-6
     
     with wave.open(path, "wb") as wf:
-        wf.setnchannels(1)  # Mono
-        wf.setsampwidth(2)  # 16-bit PCM
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
         wf.setframerate(sample_rate)
-        for val in signal:
+        for val in combined:
             data = struct.pack("<h", int(val * 32767))
             wf.writeframesraw(data)
 
 def generate_synthetic_vocoder_wav(path):
-    # Vocoder synthetic has high hf_ratio (> 1.85)
-    sample_rate = 8000
-    duration = 2.0
-    signal = np.random.normal(0, 1, int(sample_rate * duration))
-    signal /= np.max(np.abs(signal))
-    
-    with wave.open(path, "wb") as wf:
-        wf.setnchannels(1)  # Mono
-        wf.setsampwidth(2)  # 16-bit PCM
-        wf.setframerate(sample_rate)
-        for val in signal:
-            data = struct.pack("<h", int(val * 32767))
-            wf.writeframesraw(data)
-
-def generate_synthetic_robotic_wav(path, freq):
-    # Robotic synthetic has very low zcr (< 0.05) and low hf (< 0.1)
     sample_rate = 8000
     duration = 2.0
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    signal = np.sin(2 * np.pi * freq * t)
-    signal /= np.max(np.abs(signal))
     
+    # Vocoder speech: mostly hiss and buzz
+    f0 = 160 + 20 * np.sin(2 * np.pi * 2.0 * t)
+    phase_f0 = 2 * np.pi * np.cumsum(f0) / sample_rate
+    signal_f0 = np.sin(phase_f0) * 0.2
+    
+    # Vocoder hiss
+    hiss = np.random.normal(0, 0.8, len(t))
+    combined = signal_f0 + hiss
+    
+    combined /= np.max(np.abs(combined)) + 1e-6
     with wave.open(path, "wb") as wf:
-        wf.setnchannels(1)  # Mono
-        wf.setsampwidth(2)  # 16-bit PCM
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
         wf.setframerate(sample_rate)
-        for val in signal:
+        for val in combined:
+            data = struct.pack("<h", int(val * 32767))
+            wf.writeframesraw(data)
+
+def generate_synthetic_robotic_wav(path):
+    sample_rate = 8000
+    duration = 2.0
+    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+    f0 = 80.0 # Lower base frequency
+    phase_f0 = 2 * np.pi * f0 * t
+    signal_f0 = np.sin(phase_f0)
+    
+    # Lower frequency formants to keep zcr < 0.05 and hf < 0.1
+    f1 = 180.0
+    f2 = 280.0
+    phase_f1 = 2 * np.pi * f1 * t
+    phase_f2 = 2 * np.pi * f2 * t
+    signal_f1 = np.sin(phase_f1) * 0.2
+    signal_f2 = np.sin(phase_f2) * 0.1
+    
+    combined = signal_f0 + signal_f1 + signal_f2
+    combined /= np.max(np.abs(combined)) + 1e-6
+    with wave.open(path, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        for val in combined:
             data = struct.pack("<h", int(val * 32767))
             wf.writeframesraw(data)
 
@@ -65,27 +118,21 @@ def generate_evaluation_dataset(directory):
     samples = []
 
     # 1. Generate 5 Natural voice clips (expected_synthetic = False)
-    # Use frequencies and noise levels to keep hf_ratio between 0.1 and 1.85, and zcr >= 0.05
     for i in range(5):
         path = os.path.join(directory, f"natural_{i}.wav")
-        freq = 200 + i * 50
-        noise_level = 0.2 + i * 0.05
-        generate_natural_wav(path, freq, noise_level)
+        generate_natural_wav(path)
         samples.append((path, False))
 
     # 2. Generate 3 Vocoder Synthetic voices (expected_synthetic = True)
-    # High-frequency white noise
     for i in range(3):
         path = os.path.join(directory, f"synthetic_vocoder_{i}.wav")
         generate_synthetic_vocoder_wav(path)
         samples.append((path, True))
 
     # 3. Generate 2 Robotic Synthetic voices (expected_synthetic = True)
-    # Low-frequency pure sine waves (zcr < 0.05 and hf < 0.1)
     for i in range(2):
         path = os.path.join(directory, f"synthetic_robotic_{i}.wav")
-        freq = 40 + i * 5  # 40Hz and 45Hz
-        generate_synthetic_robotic_wav(path, freq)
+        generate_synthetic_robotic_wav(path)
         samples.append((path, True))
 
     return samples

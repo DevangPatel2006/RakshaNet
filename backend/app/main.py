@@ -2,6 +2,7 @@ import asyncio
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.db.init_db import init_db
 from app.routers import auth, complaints, cases, counterfeit, graph, evidence, alerts, geo, transactions, admin, speech
@@ -9,10 +10,12 @@ from app.services.event_bus import get_event_bus
 
 app = FastAPI(title="RakshaNet Core API Gateway")
 
+cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+
 # Enable CORS preflight checks and cross-origin access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,6 +31,22 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.on_event("startup")
 def startup_event():
+    # Security verification
+    if settings.ENV != "dev":
+        if settings.JWT_SECRET == "supersecretkeyforrakshanetdev":
+            raise RuntimeError(
+                f"CRITICAL SECURITY ERROR: Application is running in non-development mode (ENV={settings.ENV}), but the default JWT_SECRET ('supersecretkeyforrakshanetdev') is still in use! Startup aborted."
+            )
+        if settings.NEO4J_PASSWORD == "neo4jpassword":
+            raise RuntimeError(
+                f"CRITICAL SECURITY ERROR: Application is running in non-development mode (ENV={settings.ENV}), but the default NEO4J_PASSWORD ('neo4jpassword') is still in use! Startup aborted."
+            )
+    else:
+        if settings.JWT_SECRET == "supersecretkeyforrakshanetdev":
+            print("WARNING: Default development JWT_SECRET in use. Do not use this in production environments!")
+        if settings.NEO4J_PASSWORD == "neo4jpassword":
+            print("WARNING: Default development NEO4J_PASSWORD in use. Do not use this in production environments!")
+
     # Initialize Postgres DB Schema and seed defaults
     db = SessionLocal()
     try:

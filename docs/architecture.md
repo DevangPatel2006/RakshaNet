@@ -87,6 +87,6 @@ If any value mismatch is detected, the verification fails, indicating tampering.
 
 ## 5. Storage and Parameter Paths
 
-- **NLP Model Weights**: Stored under `backend/nlp_model.joblib`.
+- **NLP Model**: Utilizes live calls to the Groq LLM API (model configured via `GROQ_MODEL`) with structured JSON schema responses.
 - **Counterfeit Detection Histograms**: Hardcoded HSV ranges configured inside `backend/app/services/counterfeit_vision.py`.
 - **Case Dossiers**: Exported case documents compile to PDF binaries dynamically on request using ReportLab canvas stream operations.

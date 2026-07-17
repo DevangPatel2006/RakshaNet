@@ -8,6 +8,7 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
+    ENV: str = "dev"
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:55432/rakshanet"
     NEO4J_URI: str = "bolt://localhost:7687"
     NEO4J_USER: str = "neo4j"
@@ -20,5 +21,7 @@ class Settings(BaseSettings):
 
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "openai/gpt-oss-20b"
+
+    CORS_ORIGINS: str = "http://localhost:5173"
 
 settings = Settings()
